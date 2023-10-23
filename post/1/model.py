@@ -161,8 +161,6 @@ class TritonPythonModel(object):
             batch_out = {k: [] for k, name in self.output_names.items(
             ) if name in request.requested_output_names()}
 
-            box = batch_in['box']
-            mbox = batch_in['mbox']
             ocr = batch_in['ocr']
 
             # dummy zero box return in case of no text bounding box
@@ -193,6 +191,8 @@ class TritonPythonModel(object):
                     confidence_scores.append(confidence_score)
 
                 img_idx_prev = 0
+                box = batch_in['box']
+                mbox = batch_in['mbox']
                 for i, img_idx in enumerate(mbox): # image idex start from 1
                     if img_idx != img_idx_prev:
                         batch_out['box'].append([box[i]])
@@ -204,7 +204,7 @@ class TritonPythonModel(object):
                     batch_out['text'][-1].append(preds_str[i])
                     batch_out['score'][-1].append(confidence_scores[i])
 
-                max_obj = max([len(b)  for b in batch_out['box']])
+                max_obj = max(len(b) for b in batch_out['box'])
                 # The output of all imgs must have the same size for Triton to be able to output a Tensor of type self.output_dtypes
                 # Non-meaningful bounding boxes have coords [-1, -1, -1, -1] and text '' will be added and remove in model-backend
                 for i, b in enumerate(batch_out['box']):

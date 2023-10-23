@@ -98,10 +98,8 @@ class TritonPythonModel(object):
             batch_out = {k: [] for k, name in self.output_names.items(
             ) if name in request.requested_output_names()}
 
-            img_idx = 0
             map_image_boxes = {}
-            for image, mask, scale_img in zip(batch_in['image'], batch_in['mask'], batch_in['scale']): # img is shape (1,)
-                img_idx += 1
+            for img_idx, (image, mask, scale_img) in enumerate(zip(batch_in['image'], batch_in['mask'], batch_in['scale']), start=1): # img is shape (1,)
                 image_h, image_w = image.shape[:2]
                 org_img = cv2.resize(np.array(image), (int(image_w*scale_img[0]) ,int(image_h*scale_img[1])), interpolation = cv2.INTER_AREA)
                 org_image_h, org_image_w = org_img.shape[:2]
@@ -120,13 +118,13 @@ class TritonPythonModel(object):
                     y = int(y*scale_net[1]*scale_img[1])
                     w = int(w*scale_net[0]*scale_img[0])
                     h = int(h*scale_net[1]*scale_img[1])
-                    if x < 0: x = 0
-                    if y < 0: y = 0
+                    x = max(x, 0)
+                    y = max(y, 0)
                     if w < 20 or h < 10: continue
                     x2 = x + w
                     y2 = y + h
-                    if x2 > org_image_w: x2 = org_image_w
-                    if y2 > org_image_h: y2 = org_image_h
+                    x2 = min(x2, org_image_w)
+                    y2 = min(y2, org_image_h)
                     n_boxes += 1
                     map_image_boxes[img_idx]["bbox"].append([x, y, x2-x, y2-y])
                     batch_out['bbox'].append([x, y, x2 - x, y2 - y])
@@ -136,7 +134,7 @@ class TritonPythonModel(object):
                     batch_out['bbox'].append([-1, -1, -1, -1])
 
             if len(batch_out['bbox']) > 0:
-                max_w = max([math.ceil(bb[2]/bb[3])*64 for bb in batch_out['bbox']])
+                max_w = max(math.ceil(bb[2]/bb[3])*64 for bb in batch_out['bbox'])
                 normalizePAD = NormalizePAD((1, 64, max_w))
                 for image_idx, image_box in map_image_boxes.items():
                     org_img = image_box["image"]
